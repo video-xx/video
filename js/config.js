@@ -5,7 +5,7 @@
 window.AEVY_CONFIG = {
   url: 'https://coybflaniggrhdltbxtg.supabase.co',
   key: 'sb_publishable_P3I9P8LzWPhZ0oe84jTuJQ_YB_lDLLz',
-  videoApiBase: '',  /* PASTE YOUR WORKER URL HERE, e.g. https://aevy-video-api.<account>.workers.dev  (see VIDEO_API_SETUP.md) */
+  videoApiBase: 'https://video.cpmaevy.workers.dev.workers.dev',  /* PASTE YOUR WORKER URL HERE, e.g. https://aevy-video-api.<account>.workers.dev  (see VIDEO_API_SETUP.md) */
   ageGate: true,  /* ask visitors to confirm they are 18+ before the video feed loads (required for adult video APIs). Set false to turn off */
   autoGuest: true,  /* every new visitor silently gets a guest account that follows the owner and likes the owner's posts. Set false to turn off */
   creatorPosts: 3,  /* public posts needed to earn the Creator badge; keep equal to aevy_verify_scripts() in schema.sql */
