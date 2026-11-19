@@ -5,8 +5,8 @@
 var C=window.AevyCore,A=window.AevyAuth;
 if(!C||!A)return;
 var esc=C.esc,$=function(s,r){return (r||document).querySelector(s)};
-var tab='latest',shown=24,STEP=24,topic='All';
-var TOPICS=['All','Music','Gaming','Education','Technology','Podcasts','Entertainment','News'];
+var tab='latest',shown=24,STEP=24,topic='All',apiItems=[],apiPage=1,apiMore=false,apiBusy=false,apiError='',apiTimer=0,apiConfigured=false;
+var TOPICS=['All'],TOPIC_ITEMS=[];
 function me(){return A.current()}
 function av(u,n){return window.AevyEco?AevyEco.avatar(u,n):''}
 function badge(u){return window.AevyBadge?AevyBadge.html(u):''}
@@ -22,40 +22,47 @@ var I={
 };
 
 function isCreator(id){var u=A.byId?A.byId(id):null,B=window.AevyBadge;return !!(u&&B&&B.isCreator(u))}
-function feedList(){
-  var all=C.vis().filter(function(s){return !!(s.video||'').trim()}),f=S()?S().following():{};
-  if(tab==='following')all=all.filter(function(s){return f[s.owner]});
-  if(tab==='trending'){
-    var week=Date.now()-14*864e5;
-    all=all.filter(function(s){return s.created>week||(s.likes||0)+(s.downloads||0)>0});
-    all.sort(function(a,b){return ((b.likes||0)*3+(b.downloads||0)+(b.views||0)*.2)-((a.likes||0)*3+(a.downloads||0)+(a.views||0)*.2)||b.created-a.created});
-  }else all.sort(function(a,b){return b.created-a.created});
-  return all;
-}
-function emptyMsg(){
-  if(tab==='following'){
-    if(!me())return '<h3>Sign in to see your following feed</h3><p>Follow creators and their new scripts show up here.</p><a class="btn btn-primary" href="#/auth">Sign in</a>';
-    return '<h3>Nothing from people you follow yet</h3><p>Follow a few creators from the suggestions and their scripts will appear here.</p>';
-  }
-  return '<h3>No videos yet</h3><p>Share a video link and it will appear here for everyone to discover.</p><a class="btn btn-primary" href="#/publish">Share a video</a>';
+var reqId=0,AGE_KEY='aevy_18';
+function ageOk(){if(!(window.AEVY_CONFIG||{}).ageGate)return true;try{return localStorage.getItem(AGE_KEY)==='1'}catch(e){return sessionStorage&&false}}
+var ageSession=false;
+function ageGateHTML(){return '<div class="empty" role="dialog" aria-labelledby="ageT"><h3 id="ageT">Adults only (18+)</h3><p>This site shows adult videos from a third-party provider. Confirm that you are at least 18 years old and that viewing adult content is legal where you live.</p><p><button class="btn btn-primary" type="button" data-age-yes>I am 18 or older</button> <a class="btn" href="https://www.google.com" rel="noopener">Leave</a></p></div>'}
+function loadCategories(){if(!window.AevyVideoAPI)return;window.AevyVideoAPI.categories().then(function(res){apiConfigured=res.configured!==false;TOPIC_ITEMS=res.items||[];TOPICS=['All'].concat(TOPIC_ITEMS.map(function(c){return c.name||c.slug}).filter(Boolean));var active=TOPIC_ITEMS.filter(function(c){return (c.name||c.slug)===topic})[0];if(topic!=='All'&&!active){topic='All'}paintCategories()}).catch(function(){paintCategories()})}
+function paintCategories(){var box=$('.yt-categories');if(box)box.innerHTML=TOPICS.length>1?TOPICS.map(function(t){return '<button type="button" data-topic="'+esc(t)+'" class="'+(t===topic?'on':'')+'">'+esc(t)+'</button>'}).join(''):''}
+function followingMap(){var f=S()&&S().following?S().following():{};return f}
+/* reset=true: start over (new tab / category / search). reset=false: "Show more" adds the next page.
+   Every request has an id, so an old answer can never overwrite a newer one. */
+function requestVideos(reset){
+  var box=$('#homeFeed');if(!box||!window.AevyVideoAPI)return;
+  if(!ageOk()&&!ageSession){box.innerHTML=ageGateHTML();return}
+  if(!reset&&apiBusy)return;
+  var id=++reqId,page=reset?1:apiPage;
+  apiBusy=true;apiError='';if(reset){apiPage=1;apiItems=[];apiMore=false}paintFeed();
+  var q=$('#videoSearch')?$('#videoSearch').value.trim():'';
+  var cat=TOPIC_ITEMS.filter(function(c){return (c.name||c.slug)===topic})[0];
+  var o={q:q,category:topic==='All'?'':(cat?cat.slug:topic),page:page,limit:24,sort:tab==='trending'?'popular':'newest'};
+  if(tab==='following')o.owners=followingMap();
+  window.AevyVideoAPI.list(o).then(function(r){
+    if(id!==reqId)return;
+    apiConfigured=r.configured!==false;
+    var incoming=Array.isArray(r.items)?r.items:[];
+    if(!reset){var have={};apiItems.forEach(function(v){have[v.id]=1});incoming=incoming.filter(function(v){return !v.id||!have[v.id]})}
+    apiItems=reset?incoming:apiItems.concat(incoming);
+    apiMore=!!r.hasMore&&(incoming.length>0||reset);apiPage=page;apiError='';
+    if(reset)loadCategories();
+  }).catch(function(e){if(id!==reqId)return;apiError=e.message||'Could not load videos';if(!reset)apiPage=Math.max(1,page-1)}).then(function(){if(id!==reqId)return;apiBusy=false;paintFeed()});
 }
 function videoCard(s,idx){
-  var u=A.byId(s.owner),name=u?(u.name||u.username):(s.author||'Aevy creator'),url=s.video||'',id='',m=url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?.*v=|embed\/|shorts\/))([\w-]{6,})/i);
-  if(m)id=m[1];
-  var thumb=id?'https://i.ytimg.com/vi/'+encodeURIComponent(id)+'/hqdefault.jpg':'';
-  return '<article class="hs-card yt-card" style="--i:'+(idx||0)+'"><button class="yt-thumb" data-open="'+esc(s.id)+'" aria-label="Play '+esc(s.title)+'" '+(thumb?'style="--thumb:url(\''+esc(thumb)+'\')"':'')+'><span class="yt-play">'+I.play+'</span></button><div class="yt-info">'+(u?av(u,40):'<span class="avatar" style="width:40px;height:40px">'+esc(name.charAt(0))+'</span>')+'<div class="yt-copy"><button class="yt-title" data-open="'+esc(s.id)+'">'+esc(s.title)+'</button><a class="yt-author" href="'+(u&&u.username?'#/u/'+esc(u.username):'#/watch')+'">'+esc(name)+badge(u||{})+'</a><small>'+Number(s.views||0).toLocaleString()+' views · '+esc(new Date(s.created).toLocaleDateString())+'</small></div><button class="ig-more" data-act="share" data-id="'+esc(s.id)+'" aria-label="Share">⋮</button></div>'+(s.desc?'<p class="yt-desc">'+esc(s.desc)+'</p>':'')+'</article>';
+  var thumb=s.thumbnail_url||'',title=s.title||'Untitled video',channel=s.channel_title||s.provider||'Video creator',date=s.published_at?new Date(s.published_at):null;
+  return '<article class="hs-card yt-card" style="--i:'+(idx||0)+'"><button class="yt-thumb" data-api-video="'+idx+'" aria-label="Play '+esc(title)+'" '+(thumb?'style="--thumb:url(\''+esc(thumb)+'\')"':'')+'><span class="yt-play">'+I.play+'</span></button><div class="yt-info"><span class="avatar" style="width:40px;height:40px">'+esc(channel.charAt(0).toUpperCase())+'</span><div class="yt-copy"><button class="yt-title" data-api-video="'+idx+'">'+esc(title)+'</button><span class="yt-author">'+esc(channel)+'</span><small>'+Number(s.view_count||0).toLocaleString()+' views'+(date&&!isNaN(date)?' · '+esc(date.toLocaleDateString()):'')+'</small></div></div>'+(s.description?'<p class="yt-desc">'+esc(s.description.slice(0,220))+'</p>':'')+'</article>';
 }
+function playVideo(s){var u=s.playback_url||s.source_url||'';if(!u)return;var dlg=$('#dlg'),body=$('#dlgBody');$('#dlgTitle').textContent=s.title||'Video';$('#dlgSub').textContent=(s.channel_title||'')+(s.provider?' · '+s.provider:'');var isFile=/\.(mp4|webm|ogg|ogv|m4v|mov)(\?|#|$)/i.test(u);body.innerHTML=isFile?'<video controls autoplay playsinline style="width:100%;max-height:70vh;background:#000" src="'+esc(u)+'"></video>'+(s.description?'<p class="desc">'+esc(s.description)+'</p>':'')+(s.source_url?'<p class="desc"><a href="'+esc(s.source_url)+'" target="_blank" rel="noopener noreferrer">Open original</a></p>':''):'<iframe title="'+esc(s.title||'Video')+'" src="'+esc(u)+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;aspect-ratio:16/9;border:0;background:#000"></iframe>'+(s.description?'<p class="desc">'+esc(s.description)+'</p>':'');if(!dlg.open)dlg.showModal();document.body.classList.add('lock')}
 function paintFeed(){
   var box=$('#homeFeed');if(!box)return;
-  var q=($('#videoSearch')&&$('#videoSearch').value||'').trim().toLowerCase();
-  var available=feedList(),list=available.filter(function(s){
-    var u=A.byId(s.owner),author=u?(u.name+' '+u.username):(s.author||'');
-    if(q&&(s.title+' '+(s.desc||'')+' '+author+' '+(s.tags||[]).join(' ')).toLowerCase().indexOf(q)<0)return false;
-    if(topic!=='All'&&(s.tags||[]).join(' ').toLowerCase().indexOf(topic.toLowerCase())<0)return false;
-    return true;
-  }),part=list.slice(0,shown);
-  var empty=available.length===0&&C.backendOffline&&C.backendOffline()?'<div class="empty"><h3>Can’t connect to videos</h3><p>Check your connection and Supabase project settings, then try again.</p><button class="btn" type="button" data-video-retry>Retry</button></div>':available.length===0?'<div class="empty">'+emptyMsg()+'</div>':'<div class="empty"><h3>No matching videos</h3><p>Try another search or category.</p></div>';
-  box.innerHTML=part.length?'<div class="yt-grid">'+part.map(videoCard).join('')+'</div>'+(list.length>shown?'<button class="btn feed-more" id="feedMore" type="button">Show more</button>':''):empty;
+  if(!ageOk()&&!ageSession){box.innerHTML=ageGateHTML();return}
+  var parts=apiItems.map(videoCard);
+  var live=window.AevyVideoAPI&&window.AevyVideoAPI.configured&&window.AevyVideoAPI.configured();
+  var empty=apiBusy&&!apiItems.length?'<div class="empty"><p>Loading videos…</p></div>':apiError&&!apiItems.length?'<div class="empty"><h3>Videos could not load</h3><p>'+esc(apiError)+'</p><button class="btn" type="button" data-video-retry>Retry</button></div>':!apiItems.length?'<div class="empty"><h3>'+(tab==='following'?'Nothing from creators you follow yet':'No videos found')+'</h3><p>'+(tab==='following'?'Follow creators to see their videos here.':live&&apiConfigured?'Try another search or category.':'No video API is connected yet. Set <b>videoApiBase</b> in js/config.js to your Worker URL (see VIDEO_API_SETUP.md). Videos shared by members still appear here.')+'</p></div>':'';
+  box.innerHTML=parts.length?'<div class="yt-grid">'+parts.join('')+'</div>'+(apiError?'<p class="note" role="alert">'+esc(apiError)+'</p>':'')+(apiMore||apiError?'<button class="btn feed-more" id="feedMore" type="button" '+(apiBusy?'disabled':'')+'>'+(apiBusy?'Loading…':apiError?'Try again':'Show more')+'</button>':''):empty;
   document.querySelectorAll('[data-tab]').forEach(function(b){var on=b.dataset.tab===tab;b.classList.toggle('on',on);b.setAttribute('aria-current',on?'page':'false')});
   document.querySelectorAll('[data-topic]').forEach(function(b){var on=b.dataset.topic===topic;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});
 }
@@ -122,19 +129,22 @@ function render(){
    '<main class="yt-main"><div class="yt-categories" role="group" aria-label="Filter videos">'+TOPICS.map(function(t){return '<button type="button" data-topic="'+esc(t)+'">'+esc(t)+'</button>'}).join('')+'</div>'+ 
    '<div class="yt-heading"><h1>Recommended</h1><button class="btn btn-primary btn-sm" type="button" data-share-video>Share video</button></div>'+ 
    '<div class="feed-list" id="homeFeed"></div></main>';
-  paintFeed();
+  paintCategories();paintFeed();requestVideos(true);
 }
 document.addEventListener('click',function(e){
   var t=e.target.closest('#homeRoot [data-tab]');
-  if(t){tab=t.dataset.tab;shown=STEP;paintFeed();return}
+  if(t){tab=t.dataset.tab;shown=STEP;requestVideos(true);return}
   var topicButton=e.target.closest('#homeRoot [data-topic]');
-  if(topicButton){topic=topicButton.dataset.topic;shown=STEP;paintFeed();return}
+  if(topicButton){topic=topicButton.dataset.topic;shown=STEP;requestVideos(true);paintCategories();return}
+  if(e.target.closest('[data-age-yes]')){ageSession=true;try{localStorage.setItem(AGE_KEY,'1')}catch(x){}requestVideos(true);return}
   if(e.target.closest('[data-share-video]')){location.hash='#/publish';return}
-  if(e.target.closest('[data-video-retry]')){location.reload();return}
-  if(e.target.closest('#feedMore')){shown+=STEP;paintFeed()}
+  if(e.target.closest('[data-video-retry]')){requestVideos(true);loadCategories();return}
+  if(e.target.closest('#feedMore')){if(apiBusy)return;apiPage+=1;requestVideos(false);return}
+  var video=e.target.closest('[data-api-video]');if(video){var v=apiItems[Number(video.dataset.apiVideo)];if(v)playVideo(v)}
 });
-$('#videoSearchForm').addEventListener('submit',function(e){e.preventDefault();shown=STEP;if(C.view()==='home')paintFeed();else location.hash='#/'});
-$('#videoSearch').addEventListener('input',function(){shown=STEP;if(C.view()==='home')paintFeed()});
+var searchForm=$('#videoSearchForm'),searchInput=$('#videoSearch');
+if(searchForm)searchForm.addEventListener('submit',function(e){e.preventDefault();if(C.view()==='home')requestVideos(true);else location.hash='#/'});
+if(searchInput)searchInput.addEventListener('input',function(){clearTimeout(apiTimer);apiTimer=setTimeout(function(){if(C.view()==='home')requestVideos(true)},350)});
 /* keep the side cards fresh without redrawing the feed */
 window.addEventListener('aevy:presence',function(){if(C.view()!=='home')return;var o=$('#homeOnline');if(o)o.innerHTML=onlineHTML()});
 setInterval(function(){if(C.view()!=='home')return;var o=$('#homeSuggest');if(o&&!o.querySelector('button:disabled'))o.innerHTML=suggestHTML()},60000);

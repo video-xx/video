@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=video-4">
+<link rel="stylesheet" href="css/style.css?v=video-6">
 <link rel="stylesheet" href="css/photos.css?v=s1">
 </head>
 <body>
@@ -229,18 +229,19 @@
   <a href="#/profile" data-route="profile" aria-label="Profile" id="tabProfile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/></svg></a>
 </nav>
 <script src="js/config.js?v=s11" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" defer onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js'"></script>
 <script src="js/auth.js?v=s12" defer></script>
 <script src="js/badges.js?v=s11" defer></script>
 <script src="js/db.js?v=s9" defer></script>
-<script src="js/app.js?v=video-5" defer></script>
+<script src="js/app.js?v=video-7" defer></script>
 <script src="js/trust.js?v=s1" defer></script>
 <script src="js/report.js?v=s1" defer></script>
 <script src="js/eco.js?v=s10" defer></script>
-<script src="js/stats.js?v=s10" defer></script>
+<script src="js/stats.js?v=s11" defer></script>
 <script src="js/e2e.js?v=s1" defer></script>
 <script src="js/social.js?v=s17" defer></script>
-<script src="js/home.js?v=video-5" defer></script>
+<script src="js/video-api.js?v=api-2" defer></script>
+<script src="js/home.js?v=api-1" defer></script>
 <script src="js/profile.js?v=s19b" defer></script>
 <script src="js/suggest.js?v=s3" defer></script>
 <script src="js/saved.js?v=s1" defer></script>
@@ -263,7 +264,14 @@ setTimeout(function(){
   if(window.AevyHome&&window.AevyCore){
     try{window.AevyHome.render()}catch(e){console.error(e)}
   }
-  if(root&&!root.children.length)root.innerHTML='<div class="empty boot-error"><h2>Video feed could not start</h2><p>The page loaded, but its scripts or video server did not respond. Make sure the entire project folder is deployed, open it through an HTTP(S) site, and check the browser console for the first error.</p><button class="btn" type="button" onclick="location.reload()">Reload</button></div>';
+  if(root&&!root.children.length){
+    var missing=[];
+    if(!window.supabase)missing.push('Supabase client CDN');
+    if(window.supabase&&!window.AevyAuth)missing.push('js/auth.js');
+    if(!window.AevyCore)missing.push('js/app.js');
+    if(window.AevyCore&&!window.AevyHome)missing.push('js/home.js');
+    root.innerHTML='<div class="empty boot-error"><h2>Video feed could not start</h2><p>Required file did not load: '+(missing.join(', ')||'video feed module')+'. Make sure the complete project folder is deployed and open it through an HTTP(S) site.</p><button class="btn" type="button" onclick="location.reload()">Reload</button></div>';
+  }
 },8000);
 </script>
 </body>

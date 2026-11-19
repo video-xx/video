@@ -620,7 +620,7 @@ function updatePreview(){
 }
 ['fTitle','fLang','fCode'].forEach(function(id){$('#'+id).addEventListener('input',updatePreview)});
 $('#fCode').addEventListener('keydown',tabKey);
-$('#pubDownload').addEventListener('click',function(){
+if($('#pubDownload'))$('#pubDownload').addEventListener('click',function(){
   var code=$('#fCode').value;if(!code.trim()){toast('Add some code first');return}
   var n=pubFileName();download(n,code);toast('Downloaded '+n);
 });

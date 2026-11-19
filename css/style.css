@@ -2693,3 +2693,24 @@ dialog { border-radius: 14px; }
   .yt-grid { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
 }
 .yt-thumb { background-image:var(--thumb,linear-gradient(135deg,var(--accent),var(--surface3))); background-position:center; background-size:cover; }
+
+/* ---- overflow fix (video feed): let grid children shrink, scroll chips sideways, wrap long text ---- */
+html, body { max-width: 100%; overflow-x: hidden; }
+.home-social, .home-social.guest { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1101px) { .home-social, .home-social.guest { grid-template-columns: 260px minmax(0, 640px) 300px; } }
+.home-social > *, .hs-mid, .hs-right, .feed-list, .yt-grid, .yt-card, .yt-info, .yt-copy { min-width: 0; max-width: 100%; }
+.yt-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .yt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .yt-grid { grid-template-columns: minmax(0, 1fr); } }
+.yt-categories { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.yt-categories::-webkit-scrollbar { display: none; }
+.yt-categories button { flex: 0 0 auto; white-space: nowrap; }
+.yt-title, .yt-author, .yt-desc, .yt-copy small { overflow-wrap: anywhere; text-align: left; }
+.yt-thumb { max-width: 100%; }
+#dlgBody iframe, #dlgBody video { max-width: 100%; }
+@media (max-width: 900px) {
+  .home-social, .home-social.guest { padding-inline: 14px; }
+  .feed-list, .cards { margin-inline: 0; }
+  .yt-categories { margin: 0; padding: 0 0 14px; }
+  .hs-tabs, .stories { margin-inline: 0; }
+}

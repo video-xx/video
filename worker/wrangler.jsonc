@@ -1,0 +1,24 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "aevy-video-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-20",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  /* CONNECT YOUR VIDEO API HERE (then: npx wrangler secret put VIDEO_API_KEY, and npm run deploy).
+     Option A - known provider: set API_PRESET to "eporner", "pexels" or "pixabay".
+     Option B - any other API: leave API_PRESET empty and fill API_BASE_URL + API_LIST_PATH.
+     Everything else is detected automatically. Empty values are ignored. */
+  "vars": {
+    "API_PRESET": "eporner",
+    "API_BASE_URL": "",
+    "API_LIST_PATH": "",
+    "API_SEARCH_PATH": "",
+    "API_CATEGORIES_PATH": "",
+    "API_AUTH_MODE": "",
+    "API_AUTH_NAME": "",
+    "API_ITEMS_PATH": "",
+    "API_FIELDS": "",
+    "ALLOWED_ORIGIN": "*"
+  }
+}

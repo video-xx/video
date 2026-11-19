@@ -8,6 +8,7 @@ if(!C||!A||!SB)return;
 var esc=C.esc;
 function $(s,r){return (r||document).querySelector(s)}
 function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+var sec=$('#view-community')||document.createElement('div'); /* community view was removed from the video build */
 function num(n){return (n||0).toLocaleString()}
 
 /* ---------- icons ---------- */

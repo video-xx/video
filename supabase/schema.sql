@@ -1,6 +1,8 @@
--- Aevy CPM ecosystem: Supabase schema + Row Level Security.
--- Run once: Supabase dashboard -> SQL Editor -> New query -> paste this whole file -> Run.
--- Safe to re-run (idempotent).
+-- Aevy: complete Supabase schema (website project) in ONE file: tables, Row Level Security, functions, storage, video catalog.
+-- Run once: Supabase dashboard -> SQL Editor -> New query -> paste this whole file -> Run. Safe to re-run (idempotent).
+-- Also needed in the dashboard: Authentication -> Sign In / Providers -> "Allow anonymous sign-ins" ON (guest accounts).
+-- NOTE: /social (Aevy Social chat) uses its OWN Supabase project and its own schema; it must not be merged here
+--       (same table names, different columns).
 
 -- ---------- profiles: public info only (email stays in auth.users) ----------
 create table if not exists public.profiles (
@@ -18,6 +20,10 @@ alter table public.profiles add column if not exists avatar   text not null defa
 alter table public.profiles add column if not exists cover    text not null default '' check (char_length(cover) <= 400);
 alter table public.profiles add column if not exists location text not null default '' check (char_length(location) <= 40);
 alter table public.profiles add column if not exists website  text not null default '' check (char_length(website) <= 100 and (website = '' or website ~* '^https?://[^\s]+$'));
+
+alter table public.profiles add column if not exists role     text    not null default 'user';
+alter table public.profiles add column if not exists verified boolean not null default false;
+alter table public.profiles add column if not exists guest    boolean not null default false;
 
 -- ---------- scripts: metadata ----------
 create table if not exists public.scripts (
@@ -135,37 +141,18 @@ language plpgsql as $$
 declare sys boolean := coalesce(current_setting('aevy.sys', true), '') = '1';
 begin
   if tg_op = 'INSERT' then
-    if not sys and auth.uid() is not null then new.role := 'user'; new.verified := false; end if;   -- nobody can sign up as admin / verified
+    if not sys and auth.uid() is not null then new.role := 'user'; new.verified := false; new.guest := false; end if;   -- nobody can sign up as admin / verified / guest
     return new;
   end if;
   new.id       := old.id;
   new.username := old.username;   -- usernames are permanent
   new.created  := old.created;
-  if not sys and auth.uid() is not null then new.role := old.role; new.verified := old.verified; end if;   -- role + badge are server-controlled (the SQL editor has no auth.uid(), so you can still grant Admin)
+  if not sys and auth.uid() is not null then new.role := old.role; new.verified := old.verified; new.guest := old.guest; end if;   -- role + badge are server-controlled (the SQL editor has no auth.uid(), so you can still grant Admin)
   return new;
 end $$;
 drop trigger if exists profiles_guard on public.profiles;
 create trigger profiles_guard before insert or update on public.profiles
   for each row execute function public.profiles_guard();
-
--- Email sign-ups pass username + name as user metadata; the profile is created here so it works
--- even before the email link is confirmed (no session yet).
-create or replace function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
-declare
-  un text := lower(coalesce(new.raw_user_meta_data->>'username', ''));
-  nm text := left(coalesce(nullif(btrim(new.raw_user_meta_data->>'name'), ''), un), 40);
-begin
-  if un ~ '^[a-z0-9_]{3,20}$' then
-    insert into public.profiles (id, username, name, color)
-    values (new.id, un, nm,
-      (array['#c8f53c','#5ec8ff','#ff9f5a','#c792ff','#ff6b8b','#4de0b0'])[1 + abs(hashtext(un)) % 6]);
-  end if;
-  return new;
-end $$;
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created after insert on auth.users
-  for each row execute function public.handle_new_user();
 
 -- Lets a signed-in user delete their own account (cascades to profile, scripts, files, videos).
 create or replace function public.delete_my_account() returns void
@@ -381,8 +368,6 @@ grant select on public.daily_stats to authenticated;
 --   Admin     = profiles.role = 'admin'. Only you can grant it (SQL editor, see the bottom of this block).
 --   New       = account is younger than aevy_new_user_days() days. Older accounts get no badge.
 -- =====================================================================================
-alter table public.profiles add column if not exists role     text    not null default 'user';
-alter table public.profiles add column if not exists verified boolean not null default false;
 alter table public.profiles drop constraint if exists profiles_role_check;
 alter table public.profiles add constraint profiles_role_check check (role in ('user','admin'));
 create index if not exists profiles_role_idx on public.profiles (role) where role <> 'user';
@@ -549,9 +534,8 @@ create table if not exists public.presence (
   hidden    boolean not null default false     -- "Show my online status" switched off
 );
 alter table public.presence enable row level security;
-drop policy if exists presence_read on public.presence;
-create policy presence_read on public.presence for select using (true);
-grant select on public.presence to anon, authenticated;
+drop policy if exists presence_read on public.presence;   -- no direct access: only touch_presence() / get_presence() (hidden users stay hidden)
+revoke select on public.presence from anon, authenticated;
 
 -- Called every minute by the open site. Online = seen in the last 2 minutes.
 create or replace function public.touch_presence(hide boolean default null) returns void
@@ -564,17 +548,6 @@ end $$;
 revoke all on function public.touch_presence(boolean) from public, anon;
 grant execute on function public.touch_presence(boolean) to authenticated;
 
--- Hidden users show neither "online" nor "last seen": their row is returned without a time.
-create or replace function public.get_presence(ids uuid[] default null) returns table (user_id uuid, last_seen timestamptz)
-language sql stable security definer set search_path = public as $$
-  select p.user_id, case when p.hidden and p.user_id <> auth.uid() then null else p.last_seen end
-  from public.presence p
-  where (ids is null and p.last_seen > now() - interval '3 minutes') or p.user_id = any (ids)
-$$;
-revoke all on function public.get_presence(uuid[]) from public;
-grant execute on function public.get_presence(uuid[]) to anon, authenticated;
--- the table itself is only for the functions above, so hidden users stay hidden
-revoke select on public.presence from anon, authenticated;
 
 -- Realtime: new messages arrive instantly (Realtime respects the policies above), follows update live counts.
 do $$
@@ -594,8 +567,9 @@ end $$;
 create table if not exists public.posts (
   id        uuid primary key default gen_random_uuid(),
   owner     uuid not null references public.profiles(id) on delete cascade,
-  body      text not null check (char_length(btrim(body)) between 1 and 1000),
+  body      text not null default '',
   script_id uuid references public.scripts(id) on delete set null,
+  image     text not null default '' check (image = '' or image ~ '^https://'),
   likes     integer not null default 0,
   comments  integer not null default 0,
   created   timestamptz not null default now()
@@ -821,14 +795,13 @@ grant select, insert, update on public.reports to authenticated;
 -- the database refuses their likes, comments, follows, posts and scripts (restrictive policies below).
 -- Dashboard: Authentication > Sign In / Providers > turn ON "Allow anonymous sign-ins".
 -- =====================================================================================
-alter table public.profiles add column if not exists guest boolean not null default false;
-
 create or replace function public.is_guest(uid uuid default auth.uid()) returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce((select guest from public.profiles where id = uid), false)
 $$;
 grant execute on function public.is_guest(uuid) to anon, authenticated;
 
+-- Creates the profile at sign-up (email sign-ups pass username + name as metadata; anonymous sign-ins become guests).
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
@@ -872,6 +845,10 @@ end $$;
 drop policy if exists guest_msg on public.messages;
 create policy guest_msg on public.messages as restrictive for insert to authenticated
   with check (not public.is_guest() or public.is_guest(recipient));
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
 
 -- Optional cleanup: delete guest accounts not used for N days (run by hand, or schedule with pg_cron).
 create or replace function public.purge_old_guests(days int default 30) returns int
@@ -940,7 +917,7 @@ drop policy if exists guest_msg_read on public.messages;
 create policy guest_msg_read on public.messages as restrictive for select to authenticated
   using (public.is_guest(sender) = public.is_guest(recipient));
 
--- Online status: guests only see other guests, members never see guests.
+-- Hidden users show neither "online" nor "last seen". Online status: guests only see other guests, members never see guests.
 create or replace function public.get_presence(ids uuid[] default null) returns table (user_id uuid, last_seen timestamptz)
 language sql stable security definer set search_path = public as $$
   select p.user_id, case when p.hidden and p.user_id <> auth.uid() then null else p.last_seen end
@@ -986,7 +963,8 @@ grant execute on function public.guest_welcome() to authenticated;
 -- Photo posts reuse public.posts / post_likes / post_comments (a post with an image address). Photos are resized in the
 -- browser (max 1080 px, JPEG) and stored in the public Storage bucket "posts", one folder per user.
 -- =====================================================================================
-alter table public.posts add column if not exists image text not null default '' check (image = '' or image ~ '^https://');
+alter table public.posts add column if not exists image text not null default '' check (image = '' or image ~ '^https://');   -- (upgrade for older databases)
+alter table public.posts alter column body set default '';
 alter table public.posts drop constraint if exists posts_body_check;
 alter table public.posts add constraint posts_body_check
   check (char_length(btrim(body)) <= 1000 and (image <> '' or char_length(btrim(body)) >= 1));
@@ -1029,3 +1007,87 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.get_activity(int) from public, anon;
 grant execute on function public.get_activity(int) to authenticated;
+
+
+-- =====================================================================================
+-- Video catalog (synced by the Cloudflare Worker with the service-role key; public read)
+-- =====================================================================================
+
+create table if not exists public.video_categories (
+  slug text primary key check (slug ~ '^[a-z0-9][a-z0-9_-]{0,79}$'),
+  name text not null check (char_length(name) between 1 and 120),
+  provider text not null default '',
+  external_id text,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.video_catalog (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null,
+  external_id text not null,
+  title text not null check (char_length(title) between 1 and 300),
+  description text not null default '',
+  thumbnail_url text not null default '',
+  playback_url text not null default '',
+  source_url text not null default '',
+  channel_title text not null default '',
+  category_slugs text[] not null default '{}',
+  duration_seconds integer check (duration_seconds is null or duration_seconds >= 0),
+  view_count bigint not null default 0 check (view_count >= 0),
+  published_at timestamptz,
+  synced_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (provider, external_id)
+);
+
+create index if not exists video_catalog_published_idx on public.video_catalog (published_at desc nulls last, created_at desc);
+create index if not exists video_catalog_views_idx on public.video_catalog (view_count desc, published_at desc nulls last);
+create index if not exists video_catalog_categories_gin on public.video_catalog using gin (category_slugs);
+alter table public.video_catalog add column if not exists search_document tsvector
+  generated always as (
+    setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(channel_title, '')), 'B') ||
+    setweight(to_tsvector('simple', coalesce(description, '')), 'C')
+  ) stored;
+create index if not exists video_catalog_search_gin on public.video_catalog using gin (search_document);
+
+alter table public.video_catalog enable row level security;
+alter table public.video_categories enable row level security;
+drop policy if exists video_catalog_public_read on public.video_catalog;
+create policy video_catalog_public_read on public.video_catalog for select to anon, authenticated using (true);
+drop policy if exists video_categories_public_read on public.video_categories;
+create policy video_categories_public_read on public.video_categories for select to anon, authenticated using (true);
+grant select on public.video_catalog, public.video_categories to anon, authenticated;
+grant all on public.video_catalog, public.video_categories to service_role;
+
+create or replace function public.search_video_catalog(
+  p_query text default '',
+  p_category text default null,
+  p_page integer default 1,
+  p_page_size integer default 24,
+  p_sort text default 'newest'
+) returns setof public.video_catalog
+language sql stable security invoker
+set search_path = public
+as $$
+  select v.*
+  from public.video_catalog v
+  where (p_category is null or p_category = '' or p_category = any(v.category_slugs))
+    and (
+      coalesce(btrim(p_query), '') = ''
+      or v.search_document @@ websearch_to_tsquery('simple', btrim(p_query))
+      or v.title ilike '%' || btrim(p_query) || '%'
+      or v.channel_title ilike '%' || btrim(p_query) || '%'
+    )
+  order by
+    case when p_sort = 'popular' then v.view_count end desc nulls last,
+    case when p_sort <> 'popular' then v.published_at end desc nulls last,
+    v.created_at desc
+  limit greatest(1, least(coalesce(p_page_size, 24), 100))
+  offset (greatest(1, coalesce(p_page, 1)) - 1) * greatest(1, least(coalesce(p_page_size, 24), 100));
+$$;
+grant execute on function public.search_video_catalog(text, text, integer, integer, text) to anon, authenticated, service_role;
+
+comment on table public.video_catalog is 'Public video metadata synced by the Aevy Cloudflare Worker; media stays with its provider.';
+comment on table public.video_categories is 'Categories discovered from configured video APIs.';
