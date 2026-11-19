@@ -1,0 +1,8 @@
+<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="css/style.css"></head><body>
+<main><section class="view active"><div class="wrap ai-wrap" id="aiRoot"></div></section></main>
+<script>
+window.AevyCore={esc:s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),toast(){}};
+window.AevyAuth={current:()=>({id:'t'})};
+window.AevySB={client:{functions:{invoke:()=>new Promise(r=>setTimeout(()=>r({data:{text:'Hello from the AI! **works**'}}),1200))}}};
+location.hash='#/ai';
+</script><script src="js/ai.js"></script></body></html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="aveysocial">
+<title>aveysocial</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<section id="auth" class="hidden">
+  <div class="card">
+    <div class="logo"><svg viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0695ff"/><stop offset=".45" stop-color="#a334fa"/><stop offset=".8" stop-color="#ff6968"/><stop offset="1" stop-color="#ff7e29"/></linearGradient></defs><path fill="url(#g)" d="M16 2C8 2 2 7.8 2 15c0 4 1.800 7.500 4.800 9.900V30l4.700-2.600c1.400.4 2.900.6 4.500.6 8 0 14-5.800 14-13S24 2 16 2z"/><path fill="#fff" d="M7.500 19l5-5.300 3 3 5.200-3-5.100 5.400-3-3z"/></svg><span>avey<b>social</b></span></div>
+    <h1 id="auth-title">Sign in</h1>
+    <p id="auth-sub">Stay close to the people who matter.</p>
+    <form id="auth-form">
+      <div id="name-wrap" class="hidden">
+        <label for="username">Username</label>
+        <input class="field" id="username" autocomplete="username" placeholder="3–20 letters, numbers or _">
+      </div>
+      <label for="email">Email</label>
+      <input class="field" id="email" type="email" autocomplete="email" required>
+      <label for="password">Password</label>
+      <input class="field" id="password" type="password" minlength="6" autocomplete="current-password" required>
+      <button class="btn" id="auth-btn">Sign in</button>
+      <div class="msg" id="auth-msg" role="alert"></div>
+    </form>
+    <div class="switch"><span id="switch-text">New here?</span> <button class="link" id="switch-btn" type="button">Create an account</button></div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <aside>
+    <div class="top">
+      <h2>Chats</h2>
+      <div class="acts">
+        <button class="ibtn" id="me-btn" title="My profile" aria-label="My profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.600-7 8-7s8 3 8 7"/></svg></button>
+        <button class="ibtn" id="set-btn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+        <button class="ibtn" id="theme" title="Switch theme" aria-label="Switch theme"><svg viewBox="0 0 24 24"><path d="M21 12.800A9 9 0 1 1 11.200 3 7 7 0 0 0 21 12.800z"/></svg></button>
+        <button class="ibtn" id="out" title="Sign out" aria-label="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+      </div>
+    </div>
+    <div id="tray" class="tray"></div>
+    <div id="pushbar" class="pushbar hidden"><div><b>Turn on notifications</b><small>Get calls and messages even when aveysocial is closed.</small></div><button class="btn" id="push-on" type="button">Turn on</button><button class="ibtn" id="push-x" type="button" aria-label="Dismiss">✕</button></div>
+    <div class="ptabs" id="ptabs"><button type="button" data-p="chats" class="on">Chats</button><button type="button" data-p="groups">Groups</button><button type="button" data-p="channels">Channels</button><button type="button" data-p="contacts">Contacts</button></div>
+    <div class="searchbox"><input class="field" id="q" placeholder="Search people" aria-label="Search people"></div>
+    <div id="list"></div>
+  </aside>
+  <main>
+    <div id="placeholder" class="welcome">
+      <svg class="big" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0695ff"/><stop offset=".45" stop-color="#a334fa"/><stop offset=".8" stop-color="#ff6968"/><stop offset="1" stop-color="#ff7e29"/></linearGradient></defs><path fill="url(#g2)" d="M16 2C8 2 2 7.8 2 15c0 4 1.8 7.5 4.8 9.9V30l4.7-2.6c1.4.4 2.9.6 4.5.6 8 0 14-5.8 14-13S24 2 16 2z"/><path fill="#fff" d="M7.5 19l5-5.3 3 3 5.2-3-5.1 5.4-3-3z"/></svg>
+      <h1>Welcome<span id="me-name"></span></h1>
+      <p>Message friends, share stories that last 24 hours and follow the people you like. Get set up in a minute:</p>
+      <div class="cards">
+        <button class="wc" id="wc-photo" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><b>Add a profile photo</b><small>Help friends recognise you</small></button>
+        <button class="wc" id="wc-story" type="button"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span><b>Share a story</b><small>Photo or text, gone in 24 hours</small></button>
+        <button class="wc" id="wc-note" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z"/></svg></span><b>Post a note</b><small>A short thought above your photo</small></button>
+        <button class="wc" id="wc-invite" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><b>Invite friends</b><small>Copy your invite link</small></button>
+      </div>
+      <div class="foot">Tip: double-click a message to like it.</div>
+    </div>
+    <div id="chat" style="display:none;flex-direction:column;flex:1;min-height:0">
+      <div class="head">
+        <button class="ibtn" id="back" aria-label="Back to chats"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span id="h-av"></span>
+        <div class="who"><b id="h-name"></b><small id="h-status"></small></div>
+        <div class="hacts">
+          <button class="ibtn" id="h-call" type="button" title="Voice call" aria-label="Voice call"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></button>
+          <button class="ibtn" id="h-video" type="button" title="Video call" aria-label="Video call"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+        </div>
+      </div>
+      <div id="log"></div>
+      <div id="replybar" class="hidden"><div><b id="rb-t"></b><span id="rb-s"></span></div><button class="ibtn" id="rb-x" type="button" aria-label="Cancel">✕</button></div>
+      <div id="ro" class="hidden">Only admins can post in this channel</div>
+      <form class="composer" id="send">
+        <input type="file" id="file" multiple class="hidden">
+        <button type="button" class="ibtn big" id="attach" title="Send a photo or file" aria-label="Send a photo or file"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.500" cy="8.500" r="1.500"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <button type="button" class="ibtn big" id="mic" title="Record a voice message" aria-label="Record a voice message"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></button>
+        <textarea id="text" rows="1" maxlength="2000" placeholder="Aa" aria-label="Message"></textarea>
+        <button type="button" class="ibtn big" id="emoji" title="Emoji" aria-label="Emoji"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.500 2 4 2 4-2 4-2M9 9.500h.01M15 9.500h.01"/></svg></button>
+        <button class="ibtn big" id="sendbtn" title="Send" aria-label="Send"><span id="sendicon" style="font-size:22px">👍</span></button>
+        <div class="recbar hidden" id="recbar">
+          <button type="button" class="ibtn" id="rec-x" title="Cancel" aria-label="Cancel recording"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+          <span class="rdot"></span><b id="rec-t">0:00</b><small style="color:var(--muted)">Recording…</small><span style="flex:1"></span>
+          <button type="button" class="ibtn" id="rec-ok" style="background:var(--blue);color:#fff" title="Send voice message" aria-label="Send voice message"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+        </div>
+        <div class="emojis hidden" id="emojis"></div>
+      </form>
+    </div>
+  </main>
+</div>
+<div id="compose" class="modal hidden"><div class="sheet">
+  <div class="tabs"><button type="button" data-t="story" class="on">Story</button><button type="button" data-t="note">Note</button></div>
+  <div id="p-story">
+    <div class="prev" id="prev"><textarea id="s-text" maxlength="200" placeholder="Start typing" aria-label="Story text"></textarea></div>
+    <div class="sw" id="sw"></div>
+    <input type="file" id="s-file" accept="image/*" class="hidden">
+    <button class="btn" id="s-img" style="background:var(--soft);color:var(--text);margin-top:0">Add a photo</button>
+    <button class="btn" id="s-post">Share story</button>
+  </div>
+  <div id="p-note" class="hidden">
+    <p style="color:var(--muted);margin:0 0 10px">A short note shows above your photo for 24 hours.</p>
+    <input class="field" id="n-text" maxlength="60" placeholder="What's on your mind?" aria-label="Note">
+    <button class="btn" id="n-save">Share note</button>
+    <div style="text-align:center;margin-top:12px"><button class="link" id="n-del" type="button">Delete note</button></div>
+  </div>
+  <div style="text-align:center;margin-top:14px"><button class="link" id="c-close" type="button" style="color:var(--muted)">Close</button></div>
+</div></div>
+<div id="viewer" class="hidden"><div class="vbox">
+  <div id="bars"></div>
+  <div class="vh"><span id="v-av"></span><b id="v-name"></b><small id="v-time"></small><button class="ibtn" id="v-close" aria-label="Close story">✕</button></div>
+  <div id="v-body"></div>
+  <button class="hit" id="v-prev" aria-label="Previous story"></button><button class="hit" id="v-next" aria-label="Next story"></button>
+  <div class="vf"><button id="v-like" type="button"></button><button id="v-del" type="button" class="hidden">Delete</button></div>
+</div></div>
+<div id="profile" class="modal hidden"><div class="sheet pf">
+  <div id="pf-av"></div>
+  <input type="file" id="pf-file" accept="image/*" class="hidden">
+  <button class="link" id="pf-change" type="button">Change photo</button>
+  <h3 id="pf-name"></h3>
+  <small id="pf-rel" style="color:var(--muted)"></small>
+  <div class="stats"><div><b id="pf-fers">0</b><span>Followers</span></div><div><b id="pf-fing">0</b><span>Following</span></div></div>
+  <p id="pf-bio" style="color:var(--muted);margin:0 0 12px"></p>
+  <textarea class="field" id="pf-bio-in" rows="2" maxlength="100" placeholder="Write a short bio" aria-label="Bio"></textarea>
+  <button class="btn" id="pf-main" type="button"></button>
+  <button class="btn alt" id="pf-msg" type="button">Message</button>
+  <div style="margin-top:14px"><button class="link" id="pf-close" type="button" style="color:var(--muted)">Close</button></div>
+</div></div>
+<div id="call" class="hidden"><div class="cbox">
+  <video id="c-remote" autoplay playsinline></video>
+  <video id="c-local" autoplay playsinline muted></video>
+  <div class="cwho"><div id="c-av"></div><h2 id="c-name"></h2><p id="c-state"></p></div>
+  <div class="cctl">
+    <button class="cb" id="c-mute" type="button" title="Mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></button>
+    <button class="cb" id="c-cam" type="button" title="Camera" aria-label="Camera"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+    <button class="cb red" id="c-end" type="button" title="End call" aria-label="End call"><svg viewBox="0 0 24 24" style="transform:rotate(135deg)"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></button>
+    <button class="cb green hidden" id="c-acc" type="button" title="Accept" aria-label="Accept call"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></button>
+  </div>
+</div></div>
+<div id="lightbox" class="hidden"><img alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

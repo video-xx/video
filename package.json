@@ -1,0 +1,22 @@
+{
+  "name": "aevy-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aevy video community Android app (Capacitor wrapper around the website files)",
+  "scripts": {
+    "prepare:www": "node scripts/prepare-www.js",
+    "android:add": "cap add android",
+    "android:assets": "capacitor-assets generate --android --assetPath resources",
+    "android:sync": "npm run prepare:www && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.2.0"
+  }
+}

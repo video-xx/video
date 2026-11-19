@@ -1,0 +1,38 @@
+Aevy for Android
+================
+
+Two ways to get an Android app. Option A needs nothing but your hosted website.
+
+A) Install from Chrome (PWA) - no build, works today
+----------------------------------------------------
+1. Host the site over https (Netlify, Vercel, Cloudflare Pages, GitHub Pages...).
+2. Open it in Chrome on Android. After a few seconds an "Install Aevy" card appears
+   (or Chrome menu -> Install app / Add to Home screen).
+3. Aevy opens full screen from the home screen with its own icon. Updates arrive
+   automatically whenever you re-upload the site (bump VERSION in sw.js to force it).
+
+B) Real APK file (Capacitor) - built in the cloud, nothing to install on your PC
+--------------------------------------------------------------------------------
+1. Create a GitHub repository and upload everything in this folder (keep .github/).
+2. GitHub -> Actions -> "Build Android APK" -> Run workflow. Takes about 5 minutes.
+3. Open the finished run -> Artifacts -> aevy-debug-apk -> download, unzip, copy
+   app-debug.apk to your phone and install it (allow "Install unknown apps" once).
+Build on your own PC instead (needs Node 20, Java 17, Android Studio):
+   npm install
+   npm run prepare:www
+   npm run android:add
+   npm run android:assets
+   npm run android:sync
+   npm run android:apk        (APK: android/app/build/outputs/apk/debug/app-debug.apk)
+   or: npm run android:open   (opens Android Studio)
+
+Supabase setting for the APK
+----------------------------
+Authentication -> URL Configuration -> Redirect URLs: add   https://localhost
+(the native app runs on that address). Keep your normal website address too.
+
+Play Store
+----------
+The debug APK is for testing and sharing. For Google Play you need a signed release
+build (AAB) with your own keystore and a Play developer account ($25 one time). Ask
+and I will add the signing step to the workflow.
